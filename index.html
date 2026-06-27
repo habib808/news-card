@@ -1079,11 +1079,16 @@
                 logging: false,
                 backgroundColor: null,
                 imageTimeout: 15000,
-                onclone: (doc) => {
-                    // Make sure logo is visible in cloned doc
-                    const logoClone = doc.getElementById('logoImg');
-                    if (logoClone) { logoClone.crossOrigin = 'anonymous'; }
-                }
+onclone: (doc) => {
+    // Force logo to reload with CORS so html2canvas can draw it
+    const logoClone = doc.getElementById('logoImg');
+    if (logoClone) {
+        const originalSrc = logoClone.src;
+        logoClone.crossOrigin = 'anonymous';
+        logoClone.src = '';
+        logoClone.src = originalSrc + (originalSrc.includes('?') ? '&' : '?') + 'cors=' + Date.now();
+    }
+}
             });
 
             const uri  = canvas.toDataURL('image/png');
