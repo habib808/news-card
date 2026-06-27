@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nahdah24 - News Card Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Serif+Bengali:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ===================== RESET & APP ===================== */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#eef0f4;font-family:'Hind Siliguri',sans-serif;color:#111827;min-height:100vh}
+
+.app-header{
+  background:linear-gradient(100deg,#7b0000 0%,#b71c1c 45%,#d32f2f 100%);
+  color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px;
+  box-shadow:0 3px 14px rgba(150,0,0,.4)
+}
+.hdr-logo{width:40px;height:40px;border-radius:50%;background:#fff;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+.hdr-logo img{width:100%;height:100%;object-fit:cover}
+.hdr-text h1{font-size:17px;font-weight:700}
+.hdr-text p{font-size:11px;opacity:.8;margin-top:1px}
+
+.main{display:flex;flex-direction:column;max-width:1120px;margin:0 auto}
+@media(min-width:860px){
+  .main{flex-direction:row;align-items:flex-start;padding:22px;gap:22px}
+  .preview-area{position:sticky;top:22px;flex:0 0 auto;border-radius:14px;overflow:hidden;align-self:flex-start}
+  .ctrl{flex:1;border-top:none;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.09)}
+}
+
+/* ===================== PREVIEW ===================== */
+.preview-area{background:#18181b;padding:20px 16px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.preview-topbar{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:540px}
+.live-label{color:rgba(255,255,255,.65);font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#ef4444;animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.dtabs{display:flex;gap:5px;flex-wrap:wrap}
+.dtab{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;
+  border:1.5px solid rgba(255,255,255,.22);color:rgba(255,255,255,.55);background:transparent;
+  transition:all .2s;font-family:'Hind Siliguri',sans-serif}
+.dtab.active{background:#d32f2f;border-color:#d32f2f;color:#fff}
+.card-scaler{width:100%;max-width:540px;display:flex;justify-content:center}
+#cardScaleWrapper{transform-origin:top left}
+
+/* ===================== THE CARD 600×700 ===================== */
+#newsCard{width:600px;height:700px;position:relative;overflow:hidden;font-family:'Hind Siliguri',sans-serif;background:#fff}
+
+/* --- SHARED POSITIONED ELEMENTS --- */
+/* Category badge */
+.s-cat{position:absolute;z-index:30;padding:5px 16px;border-radius:3px;
+  font-size:13px;font-weight:700;color:#fff;letter-spacing:.4px;white-space:nowrap;
+  background:#d32f2f}
+/* Date badge */
+.s-date{position:absolute;z-index:30;padding:5px 13px;border-radius:3px;
+  font-size:12px;font-weight:600;color:#fff;background:rgba(0,0,0,.6);white-space:nowrap}
+/* Image area */
+.s-img{position:absolute;overflow:hidden;background:#ddd;
+  display:flex;align-items:center;justify-content:center}
+.s-img img{position:absolute;top:0;left:50%;transform:translateX(-50%);width:100%;height:auto}
+.s-img-overlay{position:absolute;bottom:0;left:0;right:0;z-index:2;pointer-events:none}
+/* Placeholder */
+.ph{display:flex;flex-direction:column;align-items:center;gap:10px;color:#aaa;z-index:1}
+.ph i{font-size:46px}.ph span{font-size:13px;color:#999;font-weight:600}
+/* Title text area */
+.s-title-box{position:absolute;left:0;right:0;overflow:hidden;
+  display:flex;align-items:center;justify-content:center}
+.s-title{font-family:'Noto Serif Bengali',serif;font-size:22px;font-weight:800;
+  line-height:1.55;text-align:center;width:100%;
+  overflow:hidden;word-break:break-word;overflow-wrap:break-word;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical}
+/* Footer */
+.s-footer{position:absolute;bottom:0;left:0;right:0;z-index:30;
+  display:flex;justify-content:space-around;align-items:center;padding:0 16px}
+.fi{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#444}
+.fi i{font-size:13px}
+.fi.fb i{color:#1877f2}.fi.web i{color:#e91e63}.fi.yt i{color:#f00}
+
+/* ============================================================
+   DESIGN 1 — প্রথম আলো স্টাইল
+   White bg, red header band with logo left, clean editorial
+   ============================================================ */
+/* header band */
+#d1-hband{position:absolute;top:0;left:0;right:0;height:54px;z-index:20;
+  background:linear-gradient(90deg,#b71c1c,#d32f2f 60%,#c62828)}
+/* white logo pocket clipped right */
+#d1-logopocket{position:absolute;top:0;left:0;height:54px;width:116px;z-index:25;background:#fff;
+  clip-path:polygon(0 0,100% 0,84% 100%,0 100%);
+  display:flex;align-items:center;justify-content:center}
+#d1-logopocket img{width:46px;height:46px;object-fit:cover;border-radius:50%}
+/* red left strip beside image */
+#d1-strip{position:absolute;top:54px;left:0;width:5px;height:346px;background:#d32f2f;z-index:15}
+/* footer */
+#d1-footer{height:60px;background:#fff;border-top:3px solid #d32f2f}
+/* d1 title box */
+#d1-titlebox{background:#fff;padding:14px 32px}
+#d1-title{color:#111;text-align:center}
+
+/* ============================================================
+   DESIGN 2 — ব্রেকিং নিউজ স্টাইল
+   Dark bg, diagonal slash header, dramatic image overlay
+   ============================================================ */
+#d2-bg{position:absolute;inset:0;background:#0e0e10;z-index:0}
+#d2-glow{position:absolute;top:54px;right:0;width:200px;height:200px;z-index:1;
+  background:radial-gradient(circle,rgba(180,0,0,.28) 0%,transparent 70%)}
+#d2-slash{position:absolute;top:0;left:0;right:0;height:54px;z-index:20;
+  background:linear-gradient(90deg,#7b0000,#d32f2f 55%,#b71c1c);
+  clip-path:polygon(0 0,100% 0,100% 68%,0 100%)}
+#d2-logo{position:absolute;top:5px;left:14px;z-index:26;
+  width:44px;height:44px;border-radius:50%;overflow:hidden;
+  border:2px solid rgba(255,255,255,.35);box-shadow:0 2px 10px rgba(0,0,0,.4)}
+#d2-logo img{width:100%;height:100%;object-fit:cover}
+#d2-breakbadge{position:absolute;z-index:35;
+  background:#ff1744;color:#fff;font-size:10px;font-weight:800;
+  padding:3px 11px;letter-spacing:2px;text-transform:uppercase;
+  clip-path:polygon(0 0,100% 0,94% 100%,0 100%)}
+/* footer */
+#d2-footer{background:linear-gradient(90deg,#0e0e10,#1a1a1f);
+  border-top:1px solid rgba(255,255,255,.08)}
+#d2-titlebox{border-top:2px solid rgba(211,47,47,.45)}
+#d2-title{color:#fff;text-align:center;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+
+/* ============================================================
+   DESIGN 3 — সমকাল প্রিমিয়াম স্টাইল
+   White/cream bg, dark navy bar with logo, green accent stripe
+   ============================================================ */
+#d3-bg{position:absolute;inset:0;background:#f5f5f0;z-index:0}
+#d3-stripe{position:absolute;top:0;left:0;right:0;height:7px;z-index:25;
+  background:linear-gradient(90deg,#1b5e20,#2e7d32,#43a047,#66bb6a)}
+#d3-mediabar{position:absolute;top:7px;left:0;right:0;height:51px;z-index:20;
+  background:#1a1a2e;display:flex;align-items:center;padding:0 16px;gap:10px}
+#d3-mediabar-logo{width:38px;height:38px;border-radius:50%;overflow:hidden;
+  border:2px solid rgba(255,255,255,.2);flex-shrink:0}
+#d3-mediabar-logo img{width:100%;height:100%;object-fit:cover}
+#d3-mediabar-name{color:#fff;font-size:16px;font-weight:700;flex:1}
+#d3-mediabar-cat{padding:4px 14px;border-radius:2px;font-size:12px;font-weight:700;
+  color:#fff;background:linear-gradient(90deg,#2e7d32,#1b5e20);white-space:nowrap}
+#d3-dots{position:absolute;top:58px;right:0;width:100px;height:100px;z-index:10;
+  background-image:radial-gradient(rgba(46,125,50,.5) 1.5px,transparent 1.5px);
+  background-size:9px 9px;opacity:.3}
+#d3-divider{position:absolute;left:20px;right:20px;height:2px;z-index:20;
+  background:linear-gradient(90deg,#2e7d32 30%,transparent)}
+/* footer */
+#d3-footer{background:#1a1a2e;border-top:3px solid #2e7d32}
+#d3-titlebox{background:#f5f5f0;padding:16px 30px}
+#d3-title{color:#111827;text-align:center}
+
+/* ============================================================
+   DESIGN 4 — টিভি নিউজ টিকার স্টাইল
+   Dark warm bg, channel bar, image full-bleed, ticker strip
+   ============================================================ */
+#d4-bg{position:absolute;inset:0;z-index:0;
+  background:linear-gradient(160deg,#1a0a00,#2d1002)}
+#d4-topaccent{position:absolute;top:0;left:0;right:0;height:5px;z-index:25;
+  background:linear-gradient(90deg,#ff6d00,#f4511e,#d32f2f)}
+#d4-channelbar{position:absolute;top:5px;left:0;right:0;height:54px;z-index:20;
+  background:rgba(0,0,0,.88);border-bottom:1px solid rgba(255,109,0,.3);
+  display:flex;align-items:center;padding:0 16px;gap:12px}
+#d4-chlogo{width:42px;height:42px;border-radius:50%;overflow:hidden;
+  border:2px solid rgba(255,109,0,.45);flex-shrink:0}
+#d4-chlogo img{width:100%;height:100%;object-fit:cover}
+#d4-chname{color:#fff;font-size:14px;font-weight:700;flex:1;letter-spacing:.3px}
+#d4-channelcat{padding:4px 13px;border-radius:2px;font-size:12px;font-weight:700;
+  color:#fff;background:linear-gradient(90deg,#ff6d00,#f4511e);white-space:nowrap}
+#d4-livebadge{position:absolute;z-index:35;
+  background:#d32f2f;color:#fff;font-size:10px;font-weight:800;
+  padding:3px 9px;letter-spacing:2px;border-radius:2px}
+/* ticker strip */
+#d4-ticker{position:absolute;left:0;right:0;z-index:20;display:flex;align-items:stretch}
+#d4-ticker-tag{width:5px;background:linear-gradient(180deg,#ff6d00,#d32f2f);flex-shrink:0}
+#d4-ticker-body{flex:1;background:linear-gradient(90deg,rgba(30,10,0,.97),rgba(20,5,0,.95));
+  display:flex;align-items:center;padding:14px 22px 14px 16px;
+  border-top:1px solid rgba(255,109,0,.28);border-bottom:1px solid rgba(255,109,0,.12)}
+#d4-title{color:#fff;text-align:left;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+/* footer */
+#d4-footer{background:rgba(0,0,0,.96);border-top:2px solid rgba(255,109,0,.45)}
+
+/* ===================== CONTROL PANEL ===================== */
+.ctrl{background:#fff;border-top:1px solid #e2e5ea}
+.ctrl-inner{max-width:720px;margin:0 auto;padding:22px 20px 30px}
+.ctrl-title{font-size:15px;font-weight:700;color:#b71c1c;margin-bottom:18px;
+  display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:2px solid #fce4e4}
+.fgrid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:580px){.fgrid{grid-template-columns:1fr 1fr}.fw{grid-column:1/-1}}
+.fg label{display:block;font-size:11px;font-weight:700;color:#555;
+  margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.fg input[type=text],.fg select,.fg textarea{
+  width:100%;padding:9px 12px;border:1.5px solid #e2e5ea;border-radius:7px;
+  font-size:14px;font-family:'Hind Siliguri',sans-serif;color:#111827;
+  outline:none;transition:border-color .2s,box-shadow .2s;background:#fafafa}
+.fg input:focus,.fg select:focus,.fg textarea:focus{
+  border-color:#d32f2f;box-shadow:0 0 0 3px rgba(211,47,47,.1);background:#fff}
+.file-wrap{position:relative;overflow:hidden;display:block}
+.btn-file{border:2px dashed #d1d5db;color:#6b7280;background:#fafafa;padding:13px;
+  border-radius:7px;font-weight:600;text-align:center;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  font-size:13px;transition:all .2s;font-family:'Hind Siliguri',sans-serif}
+.btn-file:hover{border-color:#d32f2f;color:#d32f2f;background:#fff5f5}
+.file-wrap input[type=file]{font-size:100px;position:absolute;left:0;top:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.rrow{display:flex;align-items:center;gap:10px}
+.rrow input[type=range]{flex:1;accent-color:#d32f2f;cursor:pointer}
+.rval{font-size:11px;color:#888;min-width:38px;text-align:right;font-weight:600}
+.crow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cchip{display:flex;align-items:center;gap:8px;background:#fafafa;
+  border:1.5px solid #e2e5ea;border-radius:7px;padding:7px 10px;cursor:pointer}
+.cchip input[type=color]{border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;padding:0;background:none}
+.cchip span{font-size:12px;font-weight:600;color:#555}
+.togrow{display:flex;align-items:center;gap:10px;background:#fffde7;
+  border:1px solid #f9e87f;border-radius:7px;padding:10px 14px}
+.togrow input[type=checkbox]{width:17px;height:17px;accent-color:#d32f2f;cursor:pointer}
+.togrow label{font-size:13px;color:#555;cursor:pointer;font-weight:500}
+.sep{height:1px;background:#e2e5ea;margin:6px 0 14px}
+.btn-dl{width:100%;background:linear-gradient(135deg,#7b0000,#b71c1c 40%,#d32f2f 70%,#e53935);
+  color:#fff;border:none;padding:14px;border-radius:9px;font-size:15px;font-weight:700;
+  cursor:pointer;transition:all .25s;display:flex;justify-content:center;align-items:center;
+  gap:10px;box-shadow:0 4px 18px rgba(180,0,0,.35);
+  font-family:'Hind Siliguri',sans-serif;margin-top:6px}
+.btn-dl:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 7px 24px rgba(180,0,0,.45)}
+.btn-dl:disabled{opacity:.7;cursor:wait}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#111827;color:#fff;padding:11px 22px;border-radius:30px;font-size:13px;
+  font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.35);z-index:9999;
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="hdr-logo">
+    <img src="./width_150.webp" alt="Nahdah24" onerror="this.style.display='none'">
+  </div>
+  <div class="hdr-text">
+    <h1>Nahdah24 নিউজকার্ড জেনারেটর</h1>
+    <p>প্রফেশনাল বাংলাদেশি মিডিয়া স্টাইল পোস্টার</p>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ======== PREVIEW ======== -->
+  <div class="preview-area">
+    <div class="preview-topbar">
+      <span class="live-label">
+        <span class="live-dot"></span>
+        <i class="fa-solid fa-eye"></i>&nbsp;লাইভ প্রিভিউ
+      </span>
+      <div class="dtabs">
+        <button class="dtab active" onclick="setDesign(1)">প্রথম আলো</button>
+        <button class="dtab" onclick="setDesign(2)">ব্রেকিং</button>
+        <button class="dtab" onclick="setDesign(3)">সমকাল</button>
+        <button class="dtab" onclick="setDesign(4)">টিভি নিউজ</button>
+      </div>
+    </div>
+
+    <div class="card-scaler">
+      <div id="cardScaleWrapper">
+        <div id="newsCard">
+
+          <!-- ===== DESIGN 1 ELEMENTS ===== -->
+          <div id="d1-hband"></div>
+          <div id="d1-logopocket">
+            <img src="./width_150.webp" alt="logo" onerror="this.style.display='none'">
+          </div>
+          <div id="d1-strip"></div>
+
+          <!-- ===== DESIGN 2 ELEMENTS ===== -->
+          <div id="d2-bg"></div>
+          <div id="d2-glow"></div>
+          <div id="d2-slash"></div>
+          <div id="d2-logo">
+            <img src="./width_150.webp" alt="logo" onerror="this.style.display='none'">
+          </div>
+          <div id="d2-breakbadge">ব্রেকিং নিউজ</div>
+
+          <!-- ===== DESIGN 3 ELEMENTS ===== -->
+          <div id="d3-bg"></div>
+          <div id="d3-stripe"></div>
+          <div id="d3-mediabar">
+            <div id="d3-mediabar-logo">
+              <img src="./width_150.webp" alt="logo" onerror="this.style.display='none'">
+            </div>
+            <span id="d3-mediabar-name">নাহদাহ ২৪</span>
+            <div id="d3-mediabar-cat">জাতীয়</div>
+          </div>
+          <div id="d3-dots"></div>
+          <div id="d3-divider"></div>
+
+          <!-- ===== DESIGN 4 ELEMENTS ===== -->
+          <div id="d4-bg"></div>
+          <div id="d4-topaccent"></div>
+          <div id="d4-channelbar">
+            <div id="d4-chlogo">
+              <img src="./width_150.webp" alt="logo" onerror="this.style.display='none'">
+            </div>
+            <span id="d4-chname">নাহদাহ ২৪ · NAHDAH24</span>
+            <div id="d4-channelcat">জাতীয়</div>
+          </div>
+          <div id="d4-livebadge">🔴 LIVE</div>
+
+          <!-- ===== SHARED: IMAGE AREA ===== -->
+          <div class="s-img" id="cardImgArea">
+            <div class="s-img-overlay" id="imgOverlay"></div>
+            <div class="ph" id="placeholder">
+              <i class="fa-regular fa-images"></i>
+              <span>খবরের ছবি আপলোড করুন</span>
+            </div>
+            <img id="cardImg" src="" alt="" style="display:none">
+          </div>
+
+          <!-- ===== SHARED: CATEGORY & DATE (for D1, D2) ===== -->
+          <div class="s-cat" id="sharedCat">জাতীয়</div>
+          <div class="s-date" id="sharedDate"></div>
+
+          <!-- ===== DESIGN 1 TITLE BOX ===== -->
+          <div class="s-title-box" id="d1-titlebox">
+            <div class="s-title" id="d1-title">এখানে নিউজ টাইটেল দিন এবং আকর্ষণীয় নিউজ পোস্টার তৈরি করুন</div>
+          </div>
+
+          <!-- ===== DESIGN 2 TITLE BOX ===== -->
+          <div class="s-title-box" id="d2-titlebox">
+            <div class="s-title" id="d2-title">এখানে নিউজ টাইটেল দিন এবং আকর্ষণীয় নিউজ পোস্টার তৈরি করুন</div>
+          </div>
+
+          <!-- ===== DESIGN 3 TITLE BOX ===== -->
+          <div class="s-title-box" id="d3-titlebox">
+            <div class="s-title" id="d3-title">এখানে নিউজ টাইটেল দিন এবং আকর্ষণীয় নিউজ পোস্টার তৈরি করুন</div>
+          </div>
+
+          <!-- ===== DESIGN 4 TICKER ===== -->
+          <div id="d4-ticker">
+            <div id="d4-ticker-tag"></div>
+            <div id="d4-ticker-body">
+              <div class="s-title" id="d4-title">এখানে নিউজ টাইটেল দিন এবং আকর্ষণীয় নিউজ পোস্টার তৈরি করুন</div>
+            </div>
+          </div>
+
+          <!-- ===== FOOTER (per design) ===== -->
+          <div class="s-footer" id="d1-footer">
+            <div class="fi fb"><i class="fa-brands fa-facebook"></i><span>Nahdah24</span></div>
+            <div class="fi web"><i class="fa-solid fa-globe"></i><span>nahdah24.com</span></div>
+            <div class="fi yt"><i class="fa-brands fa-youtube"></i><span>@Nahdah</span></div>
+          </div>
+          <div class="s-footer" id="d2-footer">
+            <div class="fi fb" style="color:#aaa"><i class="fa-brands fa-facebook"></i><span>Nahdah24</span></div>
+            <div class="fi web" style="color:#aaa"><i class="fa-solid fa-globe"></i><span>nahdah24.com</span></div>
+            <div class="fi yt" style="color:#aaa"><i class="fa-brands fa-youtube"></i><span>@Nahdah</span></div>
+          </div>
+          <div class="s-footer" id="d3-footer">
+            <div class="fi fb" style="color:#ccc"><i class="fa-brands fa-facebook"></i><span>Nahdah24</span></div>
+            <div class="fi web" style="color:#ccc"><i class="fa-solid fa-globe"></i><span>nahdah24.com</span></div>
+            <div class="fi yt" style="color:#ccc"><i class="fa-brands fa-youtube"></i><span>@Nahdah</span></div>
+          </div>
+          <div class="s-footer" id="d4-footer">
+            <div class="fi fb" style="color:#aaa"><i class="fa-brands fa-facebook"></i><span>Nahdah24</span></div>
+            <div class="fi web" style="color:#aaa"><i class="fa-solid fa-globe"></i><span>nahdah24.com</span></div>
+            <div class="fi yt" style="color:#aaa"><i class="fa-brands fa-youtube"></i><span>@Nahdah</span></div>
+          </div>
+
+        </div><!-- #newsCard -->
+      </div>
+    </div>
+  </div><!-- .preview-area -->
+
+  <!-- ======== CONTROL PANEL ======== -->
+  <div class="ctrl">
+    <div class="ctrl-inner">
+      <div class="ctrl-title"><i class="fa-solid fa-sliders"></i> নিউজকার্ড কন্ট্রোল প্যানেল</div>
+      <div class="fgrid">
+
+        <div class="fg fw">
+          <label><i class="fa-solid fa-image"></i> খবরের ছবি আপলোড করুন</label>
+          <div class="file-wrap">
+            <div class="btn-file" id="fileLabel"><i class="fa-solid fa-cloud-arrow-up"></i><span>ইমেজ সিলেক্ট করুন</span></div>
+            <input type="file" id="imageLoader" accept="image/*">
+          </div>
+        </div>
+
+        <div class="fg">
+          <label><i class="fa-solid fa-arrows-up-down"></i> ছবির অবস্থান (Y)</label>
+          <div class="rrow">
+            <input type="range" id="imageY" min="-300" max="300" value="0">
+            <span class="rval" id="yVal">0px</span>
+          </div>
+        </div>
+
+        <div class="fg">
+          <label><i class="fa-solid fa-maximize"></i> ছবির জুম</label>
+          <div class="rrow">
+            <input type="range" id="imageScale" min="60" max="300" value="100">
+            <span class="rval" id="scaleVal">100%</span>
+          </div>
+        </div>
+
+        <div class="fg fw">
+          <label><i class="fa-solid fa-pen-to-square"></i> নিউজের শিরোনাম</label>
+          <textarea id="titleInput" rows="3" placeholder="এখানে নিউজের শিরোনামটি লিখুন..."></textarea>
+        </div>
+
+        <div class="fg">
+          <label><i class="fa-solid fa-tags"></i> নিউজের ধরন</label>
+          <select id="categoryInput">
+            <option value="জাতীয়">জাতীয় (National)</option>
+            <option value="আন্তর্জাতিক">আন্তর্জাতিক (International)</option>
+            <option value="রাজনীতি">রাজনীতি (Politics)</option>
+            <option value="খেলাধুলা">খেলাধুলা (Sports)</option>
+            <option value="বিনোদন">বিনোদন (Entertainment)</option>
+            <option value="প্রযুক্তি">প্রযুক্তি (Technology)</option>
+            <option value="অর্থনীতি">অর্থনীতি (Economy)</option>
+            <option value="ব্রেকিং নিউজ">ব্রেকিং নিউজ (Breaking)</option>
+            <option value="no_category">কোনো ক্যাটাগরি নয়</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label><i class="fa-solid fa-text-height"></i> ফন্ট সাইজ</label>
+          <div class="rrow">
+            <input type="range" id="fontSizeInput" min="14" max="32" value="22">
+            <span class="rval" id="fontSizeVal">22px</span>
+          </div>
+        </div>
+
+        <div class="fg fw">
+          <label><i class="fa-solid fa-palette"></i> কালার কাস্টমাইজেশন</label>
+          <div class="crow">
+            <div class="cchip">
+              <input type="color" id="accentColor" value="#d32f2f">
+              <span>অ্যাকসেন্ট কালার</span>
+            </div>
+            <div class="cchip">
+              <input type="color" id="textColor" value="#111111">
+              <span>টাইটেল কালার</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fg fw">
+          <div class="togrow">
+            <input type="checkbox" id="autoColorToggle" checked>
+            <label for="autoColorToggle">ক্যাটাগরি অনুযায়ী অটো কালার পরিবর্তন করুন</label>
+          </div>
+        </div>
+
+      </div>
+      <div class="sep" style="margin-top:14px"></div>
+      <button class="btn-dl" id="downloadBtn">
+        <i class="fa-solid fa-download"></i> এইচডি পোস্টার ডাউনলোড করুন (600×700)
+      </button>
+    </div>
+  </div>
+
+</div><!-- .main -->
+<div class="toast" id="toast"></div>
+
+<script>
+const CARD_W=600, CARD_H=700;
+const $=id=>document.getElementById(id);
+
+// ── per-design pixel layout config ──
+// All positions are absolute pixels on the 600×700 card.
+// imgH: image height; titleTop/titleBot: top and distance from bottom for title box;
+// footerH: footer height; catTop/catLeft: category badge position.
+const CFG = {
+  1: {
+    imgTop:54,  imgH:346,   // image starts below 54px header
+    titleTop:400, titleBot:60, // title box: top 400, bottom 60px from card bottom
+    footerH:60,
+    catTop:14, catLeft:130, dateTop:14,     // cat/date inside red header
+    overlayH:70,  overlayOpacity:'linear-gradient(transparent,rgba(0,0,0,.4))',
+    d1cat:true,   // use sharedCat inside the hband
+  },
+  2: {
+    imgTop:54,  imgH:356,
+    titleTop:410, titleBot:58,
+    footerH:58,
+    catTop:13, catLeft:70, dateTop:13,
+    overlayH:150, overlayOpacity:'linear-gradient(transparent,rgba(0,0,0,.88))',
+    breakBadgeTop:370, breakBadgeLeft:16,
+  },
+  3: {
+    imgTop:58,  imgH:336,   // image below 7px stripe + 51px bar = 58
+    titleTop:394, titleBot:60,
+    footerH:60,
+    overlayH:110, overlayOpacity:'linear-gradient(transparent,rgba(26,26,46,.65))',
+    dividerTop:390,
+  },
+  4: {
+    imgTop:59,  imgH:360,   // image below 5px accent + 54px bar = 59
+    tickerTop:419, tickerBot:56,
+    footerH:56,
+    liveBadgeTop:72, liveBadgeLeft:16,
+    overlayH:175, overlayOpacity:'linear-gradient(transparent,rgba(15,5,0,.95))',
+  }
+};
+
+let cur = 1;
+
+// collect all design-specific DOM element groups
+const D1 = ['d1-hband','d1-logopocket','d1-strip','d1-titlebox','d1-footer'];
+const D2 = ['d2-bg','d2-glow','d2-slash','d2-logo','d2-breakbadge','d2-titlebox','d2-footer'];
+const D3 = ['d3-bg','d3-stripe','d3-mediabar','d3-dots','d3-divider','d3-titlebox','d3-footer'];
+const D4 = ['d4-bg','d4-topaccent','d4-channelbar','d4-livebadge','d4-ticker','d4-footer'];
+const ALL_GROUPS = [D1,D2,D3,D4];
+
+function hideAll(){
+  ALL_GROUPS.forEach(g=>g.forEach(id=>{
+    const el=$(id); if(el) el.style.display='none';
+  }));
+  // hide shared badges by default; each design shows what it needs
+  $('sharedCat').style.display='none';
+  $('sharedDate').style.display='none';
+}
+
+function showGroup(arr){
+  arr.forEach(id=>{ const el=$(id); if(el) el.style.display=''; });
+}
+
+// ── layout application ──
+function applyLayout(n){
+  const c = CFG[n];
+  const img = $('cardImgArea');
+  const overlay = $('imgOverlay');
+
+  // image
+  img.style.top    = c.imgTop+'px';
+  img.style.left   = '0';
+  img.style.right  = '0';
+  img.style.height = c.imgH+'px';
+  img.style.zIndex = '8';
+
+  // overlay gradient
+  overlay.style.height = c.overlayH+'px';
+  overlay.style.background = c.overlayOpacity;
+
+  if(n===1){
+    // cat & date are inside the red hband — use sharedCat positioned there
+    $('sharedCat').style.cssText=`display:block;top:${c.catTop}px;left:${c.catLeft}px;z-index:26;background:transparent;font-size:14px;font-weight:700;color:#fff;border-radius:0;white-space:nowrap;position:absolute;padding:5px 0`;
+    $('sharedDate').style.cssText=`display:block;top:${c.dateTop}px;right:16px;z-index:26;background:transparent;backdrop-filter:none;font-size:12px;color:rgba(255,255,255,.9);position:absolute;padding:5px 0`;
+    // title box
+    const tb=$('d1-titlebox');
+    tb.style.cssText=`position:absolute;left:0;right:0;top:${c.titleTop}px;bottom:${c.titleBot}px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff;padding:14px 32px`;
+  }
+
+  if(n===2){
+    $('sharedCat').style.cssText=`display:block;top:${c.catTop}px;left:${c.catLeft}px;z-index:26;background:rgba(255,255,255,.12);border-left:3px solid rgba(255,255,255,.7);border-radius:0;font-size:13px;font-weight:700;color:#fff;white-space:nowrap;position:absolute;padding:5px 14px`;
+    $('sharedDate').style.cssText=`display:block;top:${c.dateTop}px;right:16px;z-index:26;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.2);border-radius:2px;font-size:12px;color:#fff;position:absolute;padding:5px 12px`;
+    $('d2-breakbadge').style.cssText=`position:absolute;top:${c.breakBadgeTop}px;left:${c.breakBadgeLeft}px;z-index:35;background:#ff1744;color:#fff;font-size:10px;font-weight:800;padding:3px 11px;letter-spacing:2px;text-transform:uppercase;clip-path:polygon(0 0,100% 0,94% 100%,0 100%);display:block`;
+    const tb=$('d2-titlebox');
+    tb.style.cssText=`position:absolute;left:0;right:0;top:${c.titleTop}px;bottom:${c.titleBot}px;overflow:hidden;display:flex;align-items:center;justify-content:center;border-top:2px solid rgba(211,47,47,.45);padding:12px 28px`;
+  }
+
+  if(n===3){
+    // cat/date handled inside d3-mediabar — no sharedCat
+    // update d3-mediabar-cat text
+    $('d3-mediabar-cat').textContent=$('categoryInput').value==='no_category'?'':$('categoryInput').value;
+    $('d3-divider').style.cssText=`position:absolute;top:${c.dividerTop}px;left:20px;right:20px;height:2px;z-index:20;background:linear-gradient(90deg,#2e7d32 30%,transparent);display:block`;
+    const tb=$('d3-titlebox');
+    tb.style.cssText=`position:absolute;left:0;right:0;top:${c.titleTop}px;bottom:${c.titleBot}px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f5f5f0;padding:14px 32px`;
+  }
+
+  if(n===4){
+    $('d4-livebadge').style.cssText=`position:absolute;top:${c.liveBadgeTop}px;left:${c.liveBadgeLeft}px;z-index:35;background:#d32f2f;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;letter-spacing:2px;border-radius:2px;display:block`;
+    const tick=$('d4-ticker');
+    tick.style.cssText=`position:absolute;left:0;right:0;top:${c.tickerTop}px;bottom:${c.tickerBot}px;z-index:20;display:flex;align-items:stretch;overflow:hidden`;
+  }
+
+  // footer for current design
+  const fEl = $('d'+n+'-footer');
+  fEl.style.height = c.footerH+'px';
+  fEl.style.position='absolute';
+  fEl.style.bottom='0';
+  fEl.style.left='0';
+  fEl.style.right='0';
+  fEl.style.zIndex='30';
+  fEl.style.display='flex';
+}
+
+// ── theme map ──
+const themeMap={
+  'জাতীয়':       {accent:'#d32f2f',text:'#111111'},
+  'আন্তর্জাতিক': {accent:'#0277bd',text:'#0d47a1'},
+  'রাজনীতি':     {accent:'#e65100',text:'#212121'},
+  'খেলাধুলা':    {accent:'#2e7d32',text:'#1b5e20'},
+  'বিনোদন':      {accent:'#6a1b9a',text:'#4a148c'},
+  'প্রযুক্তি':   {accent:'#00796b',text:'#004d40'},
+  'অর্থনীতি':    {accent:'#ef6c00',text:'#212121'},
+  'ব্রেকিং নিউজ':{accent:'#b71c1c',text:'#000000'},
+};
+
+function dk(hex,a){
+  const n=parseInt(hex.replace('#',''),16);
+  return '#'+[Math.max(0,(n>>16)-a),Math.max(0,((n>>8)&0xff)-a),Math.max(0,(n&0xff)-a)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function lt(hex,a){
+  const n=parseInt(hex.replace('#',''),16);
+  return '#'+[Math.min(255,(n>>16)+a),Math.min(255,((n>>8)&0xff)+a),Math.min(255,(n&0xff)+a)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+function applyTheme(){
+  const cat=$('categoryInput').value;
+  const autoOn=$('autoColorToggle').checked;
+  if(autoOn && cat!=='no_category' && themeMap[cat]){
+    $('accentColor').value=themeMap[cat].accent;
+    $('textColor').value=themeMap[cat].text;
+  }
+  const acc=$('accentColor').value;
+  const txt=$('textColor').value;
+
+  // Update badge colors
+  $('sharedCat').style.backgroundColor = (cur===1)?'transparent':acc;
+  $('d3-mediabar-cat').style.background=`linear-gradient(90deg,${acc},${dk(acc,20)})`;
+  $('d4-channelcat').style.background=`linear-gradient(90deg,${lt(acc,20)},${acc})`;
+
+  // D1 specific
+  if(cur===1){
+    $('d1-hband').style.background=`linear-gradient(90deg,${dk(acc,30)},${acc} 60%,${dk(acc,10)})`;
+    $('d1-strip').style.background=acc;
+    $('d1-title').style.color=txt;
+    $('d1-footer').style.borderTopColor=acc;
+    $('sharedCat').style.backgroundColor='transparent';
+  }
+  // D2 specific
+  if(cur===2){
+    $('d2-slash').style.background=`linear-gradient(90deg,${dk(acc,25)},${acc} 55%,${dk(acc,10)})`;
+    $('d2-breakbadge').style.background=acc;
+    $('d2-title').style.color='#fff';
+  }
+  // D3 specific
+  if(cur===3){
+    $('d3-stripe').style.background=`linear-gradient(90deg,${dk(acc,30)},${acc},${lt(acc,30)})`;
+    $('d3-footer').style.borderTopColor=acc;
+    $('d3-divider').style.background=`linear-gradient(90deg,${acc} 30%,transparent)`;
+    $('d3-title').style.color=txt;
+  }
+  // D4 specific
+  if(cur===4){
+    $('d4-topaccent').style.background=`linear-gradient(90deg,${lt(acc,25)},${acc},${dk(acc,20)})`;
+    $('d4-ticker-tag').style.background=`linear-gradient(180deg,${lt(acc,20)},${acc})`;
+    $('d4-footer').style.borderTopColor=acc+'66';
+    $('d4-title').style.color='#fff';
+  }
+}
+
+// ── set design ──
+window.setDesign=function(n){
+  cur=n;
+  hideAll();
+  const groups=[D1,D2,D3,D4];
+  showGroup(groups[n-1]);
+  applyLayout(n);
+  applyTheme();
+  syncCatDisplay();
+  scaleCard();
+  setTimeout(autoFit,30);
+};
+
+// ── date ──
+function setDate(){
+  const d=new Date();
+  $('sharedDate').innerText=d.toLocaleDateString('bn-BD',{year:'numeric',month:'long',day:'numeric'});
+}
+setDate();
+
+// ── scale preview ──
+function scaleCard(){
+  const parent=$('cardScaleWrapper').parentElement;
+  const avail=parent.clientWidth;
+  const scale=Math.min(1,avail/CARD_W);
+  const sw=$('cardScaleWrapper');
+  sw.style.transform=`scale(${scale})`;
+  sw.style.width=CARD_W+'px';
+  sw.style.height=CARD_H+'px';
+  parent.style.height=Math.round(CARD_H*scale)+'px';
+  parent.style.overflow='hidden';
+}
+window.addEventListener('resize',scaleCard);
+
+// ── image upload ──
+$('imageLoader').addEventListener('change',function(e){
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    $('cardImg').src=ev.target.result;
+    $('cardImg').style.display='block';
+    $('placeholder').style.display='none';
+    $('imageY').value=0; $('imageScale').value=100;
+    updateImg();
+    $('fileLabel').innerHTML=`<i class="fa-solid fa-check-circle" style="color:#22c55e"></i><span>${file.name}</span>`;
+  };
+  r.readAsDataURL(file);
+});
+function updateImg(){
+  const y=parseInt($('imageY').value), s=parseInt($('imageScale').value);
+  $('cardImg').style.width=s+'%'; $('cardImg').style.top=y+'px';
+  $('yVal').textContent=y+'px'; $('scaleVal').textContent=s+'%';
+}
+$('imageY').addEventListener('input',updateImg);
+$('imageScale').addEventListener('input',updateImg);
+
+// ── title sync ──
+const PLACEHOLDER='এখানে নিউজ টাইটেল দিন এবং আকর্ষণীয় নিউজ পোস্টার তৈরি করুন';
+function syncTitle(v){
+  const t=v.trim()===''?PLACEHOLDER:v;
+  ['d1-title','d2-title','d3-title','d4-title'].forEach(id=>{
+    const el=$(id); if(el) el.innerText=t;
+  });
+}
+$('titleInput').addEventListener('input',function(){
+  syncTitle(this.value);
+  autoDetect();
+  setTimeout(autoFit,20);
+});
+
+// ── font size ──
+$('fontSizeInput').addEventListener('input',function(){
+  const sz=this.value;
+  $('fontSizeVal').textContent=sz+'px';
+  ['d1-title','d2-title','d3-title','d4-title'].forEach(id=>{
+    const el=$(id); if(el) el.style.fontSize=sz+'px';
+  });
+  setTimeout(autoFit,20);
+});
+
+// ── auto shrink font if overflows title box ──
+function autoFit(){
+  if(cur===4){
+    // d4 ticker: shrink to fit ticker height
+    const tick=$('d4-ticker');
+    const body=$('d4-ticker-body');
+    const title=$('d4-title');
+    const avH=tick.clientHeight-28;
+    let fs=parseInt($('fontSizeInput').value)||22;
+    title.style.fontSize=fs+'px';
+    while(title.scrollHeight>avH && fs>13){ fs--; title.style.fontSize=fs+'px'; }
+    return;
+  }
+  const tbIds={1:'d1-titlebox',2:'d2-titlebox',3:'d3-titlebox'};
+  const titleIds={1:'d1-title',2:'d2-title',3:'d3-title'};
+  const tb=$(tbIds[cur]);
+  const ti=$(titleIds[cur]);
+  if(!tb||!ti) return;
+  const c=CFG[cur];
+  const boxH=CARD_H - c.titleTop - c.footerH;
+  let fs=parseInt($('fontSizeInput').value)||22;
+  ti.style.fontSize=fs+'px';
+  while(ti.scrollHeight>boxH-20 && fs>13){ fs--; ti.style.fontSize=fs+'px'; }
+}
+
+// ── category ──
+function syncCatDisplay(){
+  const v=$('categoryInput').value;
+  const show=v!=='no_category';
+  const catText=show?v:'';
+  $('sharedCat').textContent=catText;
+  $('d3-mediabar-cat').textContent=catText;
+  $('d4-channelcat').textContent=catText;
+  if(cur===1||cur===2){
+    $('sharedCat').style.display=show?'block':'none';
+  }
+}
+$('categoryInput').addEventListener('change',function(){
+  syncCatDisplay();
+  applyTheme();
+});
+
+// ── auto detect category from title ──
+function autoDetect(){
+  if(!$('autoColorToggle').checked) return;
+  const t=$('titleInput').value;
+  if(/মেসি|ক্রিকেট|ফুটবল|খেলা|রান|টুর্নামেন্ট/.test(t))         $('categoryInput').value='খেলাধুলা';
+  else if(/ভোট|নির্বাচন|বিএনপি|আওয়ামী|মন্ত্রী|সরকার/.test(t))  $('categoryInput').value='রাজনীতি';
+  else if(/যুক্তরাষ্ট্র|বিশ্ব|ভারত|চীন|বিদেশ|ইউরোপ/.test(t))   $('categoryInput').value='আন্তর্জাতিক';
+  else if(/সিনেমা|নাটক|তারকা|বলিউড|শাকিব|গান/.test(t))           $('categoryInput').value='বিনোদন';
+  else if(/স্মার্টফোন|আইটি|এআই|ফেসবুক|গুগল|প্রযুক্তি/.test(t)) $('categoryInput').value='প্রযুক্তি';
+  else if(/টাকা|অর্থনীতি|বাজেট|শেয়ার|ব্যাংক/.test(t))           $('categoryInput').value='অর্থনীতি';
+  else if(/ভয়াবহ|ব্রেকিং|জরুরি|নিহত|দুর্ঘটনা/.test(t))          $('categoryInput').value='ব্রেকিং নিউজ';
+  syncCatDisplay();
+  applyTheme();
+}
+
+$('accentColor').addEventListener('input',()=>{ $('autoColorToggle').checked=false; applyTheme(); });
+$('textColor').addEventListener('input',()=>{ $('autoColorToggle').checked=false; applyTheme(); });
+$('autoColorToggle').addEventListener('change',applyTheme);
+
+// ── toast ──
+function showToast(m,d=3000){
+  const t=$('toast'); t.textContent=m; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),d);
+}
+
+// ── download ──
+$('downloadBtn').addEventListener('click',async function(){
+  this.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> প্রসেসিং হচ্ছে...';
+  this.disabled=true;
+  const sw=$('cardScaleWrapper');
+  const savedT=sw.style.transform;
+  sw.style.transform='none'; sw.style.width=''; sw.style.height='';
+  try{
+    const canvas=await html2canvas($('newsCard'),{
+      useCORS:true,allowTaint:false,scale:2,
+      width:CARD_W,height:CARD_H,logging:false,backgroundColor:null,imageTimeout:15000
+    });
+    const a=document.createElement('a');
+    a.download=`Nahdah24_${Date.now()}.png`;
+    a.href=canvas.toDataURL('image/png');
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    showToast('✅ পোস্টার সফলভাবে ডাউনলোড হয়েছে!');
+  }catch(e){
+    console.error(e);
+    showToast('❌ সমস্যা হয়েছে, আবার চেষ্টা করুন।');
+  }
+  sw.style.transform=savedT; scaleCard();
+  this.innerHTML='<i class="fa-solid fa-download"></i> এইচডি পোস্টার ডাউনলোড করুন (600×700)';
+  this.disabled=false;
+});
+
+// ── INIT ──
+setDesign(1);
+scaleCard();
+setTimeout(()=>{ autoFit(); },150);
+</script>
+</body>
+</html>
