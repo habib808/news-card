@@ -1078,17 +1078,7 @@
                 height: CARD_H,
                 logging: false,
                 backgroundColor: null,
-                imageTimeout: 15000,
-onclone: (doc) => {
-    // Force logo to reload with CORS so html2canvas can draw it
-    const logoClone = doc.getElementById('logoImg');
-    if (logoClone) {
-        const originalSrc = logoClone.src;
-        logoClone.crossOrigin = 'anonymous';
-        logoClone.src = '';
-        logoClone.src = originalSrc + (originalSrc.includes('?') ? '&' : '?') + 'cors=' + Date.now();
-    }
-}
+                imageTimeout: 15000
             });
 
             const uri  = canvas.toDataURL('image/png');
