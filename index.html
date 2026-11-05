@@ -118,6 +118,17 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
 .seg button{flex:1;padding:10px 4px;border:0;border-radius:9px;background:transparent;font-size:14px;font-weight:600;color:#475569;transition:.15s;display:flex;align-items:center;justify-content:center;gap:6px}
 .seg button.active{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(0,0,0,.1)}
 
+/* Highlight word chips */
+.hl-box{border:1px solid var(--line);border-radius:14px;background:#f8fafc;padding:12px}
+.hl-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.hl-head b{font-size:14px;color:#334155;display:flex;align-items:center;gap:7px}
+.hl-head b i{color:#f59e0b}
+.hl-words{display:flex;flex-wrap:wrap;gap:7px}
+.hw{border:1.5px solid var(--line);background:#fff;color:#334155;border-radius:30px;padding:5px 12px;font-size:15px;font-weight:600;line-height:1.4;transition:.15s;touch-action:manipulation}
+.hw.on{background:var(--red);border-color:var(--red);color:#fff}
+.hw.auto.on::after{content:' ✦';font-size:11px;opacity:.85}
+.hl-empty{font-size:13px;color:var(--muted)}
+
 /* Font chips */
 .font-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .font-chip{padding:10px 6px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-size:17px;color:#1e293b;line-height:1.3}
@@ -201,6 +212,9 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
 .c-inner{width:100%}
 .c-title{font-weight:700;line-height:1.45;color:var(--title);word-break:break-word}
 .c-title .hl{color:var(--accent)}
+/* marker-style highlight (one span per word = html2canvas-safe across line wraps) */
+#newsCard.hl-marker .c-title .hl{background:var(--accent);color:#fff !important;padding:0 7px;border-radius:5px;text-shadow:none}
+#newsCard.hl-marker.tpl-breaking .c-title .hl{background:#ffe14d;color:#111 !important}
 .c-sub{display:none;margin-top:10px;font-size:15px;font-weight:600;line-height:1.45;color:var(--sub)}
 
 .c-foot{position:absolute;left:0;right:0;bottom:0;height:56px;z-index:7;display:flex;align-items:center;justify-content:space-around;padding:0 16px;pointer-events:none}
@@ -378,7 +392,21 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
       <div class="group">
         <div class="g-label"><i class="fa-solid fa-pen-to-square"></i> নিউজের শিরোনাম</div>
         <textarea id="titleInput" rows="3" placeholder="এখানে নিউজের শিরোনাম লিখুন..."></textarea>
-        <p class="g-note">কোনো শব্দ <b>*স্টার*</b> দিয়ে ঘিরে দিলে সেটি অ্যাকসেন্ট কালারে হাইলাইট হবে। যেমন: ঢাকায় *ভয়াবহ* যানজট</p>
+      </div>
+
+      <div class="group">
+        <div class="hl-box">
+          <div class="hl-head">
+            <b><i class="fa-solid fa-wand-magic-sparkles"></i> স্মার্ট অটো-হাইলাইট</b>
+            <input type="checkbox" class="sw-input" id="hlAuto" aria-label="অটো হাইলাইট">
+          </div>
+          <div class="hl-words" id="hlWords"></div>
+          <p class="g-note" id="hlNote">গুরুত্বপূর্ণ শব্দ (সংখ্যা, নাম, স্থান, বড় ঘটনা) নিজে থেকে বেছে নেওয়া হয় <b>✦</b>। যেকোনো শব্দে ট্যাপ করে হাইলাইট চালু/বন্ধ করুন।</p>
+          <div class="seg" id="hlStyleSeg" style="margin-top:10px">
+            <button data-v="color"><i class="fa-solid fa-font"></i> রঙিন লেখা</button>
+            <button data-v="marker"><i class="fa-solid fa-highlighter"></i> মার্কার</button>
+          </div>
+        </div>
       </div>
 
       <div class="group">
@@ -534,7 +562,7 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
   const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
   const CARD_W = 600, CARD_H = 700;
   const DEFAULT_LOGO = './newslogo.png';
-  const DEFAULT_TITLE = 'এখানে আপনার খবরের *শিরোনাম* লিখুন — মুহূর্তেই তৈরি হবে প্রফেশনাল নিউজকার্ড';
+  const DEFAULT_TITLE = 'এখানে আপনার খবরের শিরোনাম লিখুন — মুহূর্তেই তৈরি হবে প্রফেশনাল নিউজকার্ড';
   const STORE_KEY = 'nahdah24_cardgen_v2';
 
   const TPL = {
@@ -575,9 +603,10 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
     logoPos:'center', logoSize:72, logoCustom:null,
     fb:'Nahdah24', web:'nahdah24.com', yt:'@Nahdah',
     fmt:'png', q:2,
+    hlAuto:true, hlStyle:'color', hlManual:{},
     img:{ src:null, nw:0, nh:0, zoom:1, x:0, y:0 }
   };
-  const SAVED_KEYS = ['tpl','accent','autoColor','autoCat','font','align','fontSize','autoFit','showDate','logoPos','logoSize','logoCustom','fb','web','yt','fmt','q'];
+  const SAVED_KEYS = ['tpl','accent','autoColor','autoCat','font','align','fontSize','autoFit','showDate','logoPos','logoSize','logoCustom','fb','web','yt','fmt','q','hlAuto','hlStyle'];
 
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -805,11 +834,122 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
   });
   $('btnLogoReset').onclick = () => { S.logoCustom = null; setLogoSrc(); save(); };
 
+  // ---------------- SMART HIGHLIGHT ENGINE ----------------
+  // Scores every word of the headline (numbers + units, quotes, named
+  // entities, high-impact news words) and highlights the top ones.
+  const N = s => s.normalize('NFC');
+  const toSet = s => new Set(N(s).split(/\s+/).filter(Boolean));
+  const STOP = toSet(`ও এবং বা কিন্তু যে যা এই সেই এ সে তার তাদের তিনি তারা আমি আমরা আপনি হয় হয়ে হলো হল হবে ছিল ছিলেন করে করা করেন করছে করল করলেন করেছে করেছেন দিয়ে দিল দেন দিলেন থেকে পর্যন্ত জন্য নিয়ে সঙ্গে সাথে মধ্যে উপর ওপর কাছে বলে বললেন বলেছেন জানালেন জানিয়েছেন না নয় নেই আর কি কী কেন কোন কোনো এক একটি একজন অনেক সব সবাই আরও মতো হতে পারে পারেন গেল গেছে আছে রয়েছে শুরু এখন আজ গত নতুন বিরুদ্ধে প্রতি তবে যদি তাই এর`);
+  const ENTITY = [...toSet(`বাংলাদেশ ঢাকা চট্টগ্রাম সিলেট রাজশাহী খুলনা বরিশাল রংপুর ময়মনসিংহ কুমিল্লা গাজীপুর নারায়ণগঞ্জ কক্সবাজার ফেনী নোয়াখালী বগুড়া যশোর পদ্মা মেট্রোরেল ভারত চীন পাকিস্তান যুক্তরাষ্ট্র আমেরিকা যুক্তরাজ্য রাশিয়া ইউক্রেন ইসরায়েল ইরান গাজা ফিলিস্তিন সৌদি কাতার তুরস্ক জাপান মিয়ানমার রোহিঙ্গা নেপাল শ্রীলঙ্কা আফগানিস্তান অস্ট্রেলিয়া ইংল্যান্ড জাতিসংঘ ন্যাটো আইএমএফ বিশ্বব্যাংক বিএনপি আওয়ামী জামায়াত এনসিপি জাতীয় সরকার প্রধানমন্ত্রী উপদেষ্টা রাষ্ট্রপতি সেনাপ্রধান সেনাবাহিনী পুলিশ র‍্যাব বিজিবি আদালত হাইকোর্ট সুপ্রিম ইসি দুদক সংসদ ট্রাম্প বাইডেন মোদি পুতিন নেতানিয়াহু মেসি রোনালদো নেইমার সাকিব তামিম মুশফিক মিরাজ লিটন শান্ত টাইগার টাইগাররা বিশ্বকাপ আইপিএল বিপিএল অলিম্পিক ডেঙ্গু করোনা বাজেট রিজার্ভ এসএসসি এইচএসসি ঈদ রমজান হজ`)];
+  const STRONG = [...toSet(`নিহত আহত মৃত্যু মৃত গ্রেপ্তার গ্রেফতার আটক হামলা সংঘর্ষ বিস্ফোরণ আগুন অগ্নিকাণ্ড ভূমিকম্প বন্যা ঘূর্ণিঝড় দুর্ঘটনা হত্যা খুন অপহরণ উদ্ধার নিখোঁজ জয় জয়ী জিতল জিতেছে হারাল হারিয়ে পরাজয় পরাজিত রেকর্ড ঐতিহাসিক প্রথমবার নিষেধাজ্ঞা নিষিদ্ধ বাতিল পদত্যাগ বরখাস্ত মুক্তি ফাঁসি মৃত্যুদণ্ড কারাদণ্ড যাবজ্জীবন রায় চ্যাম্পিয়ন শিরোপা স্বর্ণ সেঞ্চুরি হ্যাটট্রিক ব্রেকিং জরুরি সতর্কতা লকডাউন ছুটি ঘোষণা ধস বিপর্যয় ভয়াবহ বিক্ষোভ অবরোধ হরতাল ধর্মঘট কারফিউ যুদ্ধ যুদ্ধবিরতি চুক্তি অভিযান দুর্নীতি পাচার ফলাফল পাসের সর্বোচ্চ সর্বনিম্ন রেকর্ড বিশাল`)];
+  const UNIT = [...toSet(`জন টাকা কোটি লাখ হাজার শতাংশ ডলার রুপি বছর মাস দিন ঘণ্টা মিনিট রান উইকেট গোল কিলোমিটার কিমি মিটার ফুট কেজি টন বার তলা ডিগ্রি আসন ভোট পদ`)];
+  const SUFFIX = ['', ...['ের','এর','র','ে','য়','য়ে','কে','তে','ও','রা','দের','টি','টা','গুলো','সহ','ই','ী','ি','িরা','েই','রই','ায়','য়ের'].map(N)];
+  const inList = (w, list) => list.some(e => w.startsWith(e) && SUFFIX.includes(w.slice(e.length)));
+  const coreOf = tok => N(tok).replace(/^[\s"'“”‘’(\[{«—–\-]+|[\s"'“”‘’)\]}»,.!?:;।—–\-]+$/g, '');
+  const OPEN_Q = /^["'“‘«]/, CLOSE_Q = /["'”’»][,.!?:;।]*$/;
+
+  function analyzeTitle(text){
+    const parts = text.split(/(\s+)/);              // keep whitespace as separate parts
+    const words = [];                                // {pi, tok, core, score}
+    parts.forEach((p, pi) => { if (p && !/^\s+$/.test(p)) words.push({ pi, tok:p, core:coreOf(p), score:0 }); });
+    const isNum  = w => w && /[০-৯0-9]/.test(w.core);
+    const isUnit = w => w && inList(w.core, UNIT);
+    const isStrong = w => w && inList(w.core, STRONG);
+
+    // 1) word scores
+    words.forEach(w => {
+      const c = w.core;
+      if (!c || STOP.has(c)) { w.score = -99; return; }
+      if (isNum(w)) w.score += 6;
+      if (isStrong(w)) w.score += 5;
+      if (inList(c, ENTITY)) w.score += 4;
+      if (/^[A-Za-z]{2,}/.test(c)) w.score += 2;          // English brand / acronym
+      w.score += Math.min(c.length, 12) * 0.05;          // mild preference for longer words
+    });
+
+    // 2) build phrase groups: quotes, number+unit(+impact word), single words
+    const groups = []; const used = new Set();
+    for (let i = 0; i < words.length; i++){
+      if (OPEN_Q.test(words[i].tok)){
+        for (let j = i; j < Math.min(words.length, i + 6); j++){
+          if (CLOSE_Q.test(words[j].tok) && (j > i || words[j].tok.length > 2)){
+            if (j - i < 5){
+              const idx = []; for (let k = i; k <= j; k++){ idx.push(k); used.add(k); }
+              groups.push({ idx, score: 7 + idx.length * 0.01 });
+            }
+            break;
+          }
+        }
+      }
+    }
+    for (let i = 0; i < words.length; i++){
+      if (used.has(i) || !isNum(words[i])) continue;
+      const idx = [i]; let j = i + 1;
+      while (isUnit(words[j]) && !used.has(j) && j - i < 3){ idx.push(j); j++; }
+      if (isStrong(words[j]) && !used.has(j)) idx.push(j);                 // "৫ জন নিহত"
+      else if (isStrong(words[i-1]) && !used.has(i-1)) idx.unshift(i-1);    // "আহত ১২"
+      idx.forEach(k => used.add(k));
+      groups.push({ idx, score: 8 + idx.length * 0.1 });
+    }
+    words.forEach((w, i) => { if (!used.has(i) && w.score > -99) groups.push({ idx:[i], score:w.score }); });
+
+    // 3) pick best groups (more for longer headlines)
+    const total = words.filter(w => w.score > -99).length;
+    const maxPick = total <= 4 ? 1 : total <= 9 ? 2 : total <= 15 ? 3 : 4;
+    const picked = groups.filter(g => g.score >= 4).sort((a, b) => b.score - a.score || a.idx[0] - b.idx[0]).slice(0, maxPick);
+    const auto = new Set();
+    picked.forEach(g => g.idx.forEach(k => words[k].core && auto.add(words[k].core)));
+    if (!auto.size){                                   // fallback: longest content word
+      const best = words.filter(w => w.score > -99 && w.core.length >= 3).sort((a, b) => b.core.length - a.core.length)[0];
+      if (best) auto.add(best.core);
+    }
+    return { parts, words, auto };
+  }
+
+  function isOn(core, auto){
+    const m = S.hlManual[core];
+    if (m !== undefined) return m;
+    return S.hlAuto && auto.has(core);
+  }
+
+  function titleHTML(text){
+    if (text.includes('*'))       // manual *star* mode still supported
+      return esc(text).replace(/\*([^*\n]+)\*/g, '<span class="hl">$1</span>').replace(/\n/g, '<br>');
+    const { parts, words, auto } = analyzeTitle(text);
+    const on = new Set(words.filter(w => w.core && isOn(w.core, auto)).map(w => w.pi));
+    renderChips(words, auto, false);
+    return parts.map((p, pi) => {
+      if (/^\s+$/.test(p)) return p.includes('\n') ? '<br>' : ' ';
+      if (!on.has(pi)) return esc(p);
+      // wrap only the word core, keep punctuation outside
+      const c = coreOf(p), np = N(p), at = np.indexOf(c);
+      if (!c || at < 0) return esc(p);
+      return esc(np.slice(0, at)) + '<span class="hl">' + esc(c) + '</span>' + esc(np.slice(at + c.length));
+    }).join('');
+  }
+
+  function renderChips(words, auto, starMode){
+    const box = $('hlWords');
+    if (starMode){ box.innerHTML = '<span class="hl-empty">⭐ স্টার (*) মোড চালু — অটো-হাইলাইটের জন্য শিরোনাম থেকে * মুছে দিন।</span>'; return; }
+    const seen = new Set();
+    box.innerHTML = '';
+    words.forEach(w => {
+      if (!w.core || seen.has(w.core)) return; seen.add(w.core);
+      const b = document.createElement('button');
+      b.className = 'hw' + (isOn(w.core, auto) ? ' on' : '') + (S.hlAuto && auto.has(w.core) && S.hlManual[w.core] === undefined ? ' auto' : '');
+      b.textContent = w.core;
+      b.onclick = () => { S.hlManual[w.core] = !isOn(w.core, auto); renderText(); };
+      box.appendChild(b);
+    });
+    if (!seen.size) box.innerHTML = '<span class="hl-empty">শিরোনাম লিখলে এখানে শব্দগুলো দেখা যাবে।</span>';
+  }
+
   // ---------------- TEXT ----------------
   const esc = s => s.replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
   function renderText(){
     const t = S.title.trim() ? S.title : DEFAULT_TITLE;
-    cTitle.innerHTML = esc(t).replace(/\*([^*\n]+)\*/g, '<span class="hl">$1</span>').replace(/\n/g, '<br>');
+    if (t.includes('*')) renderChips([], null, true);
+    cTitle.innerHTML = titleHTML(t);
     cTitle.style.fontFamily = "'" + S.font + "','Hind Siliguri',sans-serif";
     cSub.textContent = S.sub;
     cSub.style.display = S.sub.trim() ? 'block' : 'none';
@@ -857,7 +997,7 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
 
   // ---------------- TEMPLATE ----------------
   function applyTemplate(){
-    card.className = 'tpl-' + S.tpl;
+    card.className = 'tpl-' + S.tpl + (S.hlStyle === 'marker' ? ' hl-marker' : '');
     document.querySelectorAll('.tpl-chip').forEach(b => b.classList.toggle('active', b.dataset.tpl === S.tpl));
     layoutAll();
   }
@@ -905,7 +1045,7 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
     }));
   }
   function syncSegs(){
-    const map = { alignSeg:'align', logoSeg:'logoPos', fmtSeg:'fmt', qSeg:'q' };
+    const map = { alignSeg:'align', logoSeg:'logoPos', fmtSeg:'fmt', qSeg:'q', hlStyleSeg:'hlStyle' };
     for (const id in map) $(id).querySelectorAll('button').forEach(b => b.classList.toggle('active', String(S[map[id]]) === b.dataset.v));
     document.querySelectorAll('.font-chip').forEach(b => b.classList.toggle('active', b.dataset.f === S.font));
     $('qNote').textContent = 'আউটপুট: ' + (600 * S.q) + '×' + (700 * S.q) + ' পিক্সেল · ' + S.fmt.toUpperCase();
@@ -913,6 +1053,7 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
   bindSeg('alignSeg', 'align', renderText);
   bindSeg('logoSeg', 'logoPos', () => { placeLogo(); fitTitle(); });
   bindSeg('fmtSeg', 'fmt');
+  bindSeg('hlStyleSeg', 'hlStyle', () => { applyTemplate(); fitTitle(); });
   bindSeg('qSeg', 'q');
   document.querySelectorAll('.font-chip').forEach(b => b.addEventListener('click', () => {
     S.font = b.dataset.f; syncSegs(); renderText(); save();
@@ -936,6 +1077,7 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
     el.addEventListener('change', () => { S[key] = el.checked; after && after(); save(); });
   }
   bindToggle('autoFit', 'autoFit', fitTitle);
+  bindToggle('hlAuto', 'hlAuto', () => { S.hlManual = {}; renderText(); });
   bindToggle('autoCat', 'autoCat', () => { autoDetect(); });
   bindToggle('autoColor', 'autoColor', renderMeta);
   bindToggle('showDate', 'showDate', renderMeta);
