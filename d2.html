@@ -205,6 +205,8 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
 .c-head::before,.c-head::after{content:'';position:absolute;display:none}
 .c-logo{position:absolute;display:none;z-index:2;border-radius:50%;background:#fff;border:2px solid #fff;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 .c-logo img{display:block}
+/* "আসল লোগো" mode: no frame, no crop, no extra ring — the logo file exactly as designed */
+#newsCard.logo-raw .c-logo{background:transparent;border:0;box-shadow:none;border-radius:0;overflow:visible}
 .c-logo-fb{display:none;font:700 14px 'Poppins',sans-serif;color:var(--accent)}
 .c-brand,.c-hcat,.c-hdate{position:absolute;display:none;z-index:2;white-space:nowrap;align-items:center}
 .c-brand{font:700 17px 'Poppins','Hind Siliguri',sans-serif;color:#fff}
@@ -534,7 +536,11 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
           </label>
           <button class="chip-btn" id="btnLogoReset"><i class="fa-solid fa-rotate-left"></i> ডিফল্ট লোগো</button>
         </div>
-        <p class="g-note">লোগো হেডারের নির্দিষ্ট জায়গায় সঠিক অনুপাতে নিজে থেকে বসবে।</p>
+        <div class="seg" id="logoFrameSeg" style="margin-top:10px">
+          <button data-v="raw"><i class="fa-solid fa-image"></i> আসল লোগো</button>
+          <button data-v="circle"><i class="fa-regular fa-circle"></i> গোল ফ্রেম</button>
+        </div>
+        <p class="g-note">"আসল লোগো" দিলে আপনার লোগো ফাইল কোনো কাটছাঁট ছাড়া হুবহু বসবে — প্রিভিউ ও ডাউনলোড দুই জায়গায় একই।</p>
       </div>
 
       <div class="group">
@@ -608,13 +614,13 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
     category:'জাতীয়', customCat:'',
     title:'', sub:'', font:'Noto Serif Bengali', align:'center', fontSize:30, autoFit:true,
     showDate:true, dateText:'',
-    logoCustom:null, brand:'NAHDAH24',
+    logoCustom:null, brand:'NAHDAH24', logoFrame:'raw',
     fb:'Nahdah24', web:'nahdah24.com', yt:'@Nahdah',
     fmt:'png', q:2,
     hlAuto:true, hlStyle:'color', hlManual:{},
     img:{ src:null, nw:0, nh:0, zoom:1, x:0, y:0 }
   };
-  const SAVED_KEYS = ['tpl','accent','autoColor','autoCat','font','align','fontSize','autoFit','showDate','logoCustom','brand','fb','web','yt','fmt','q','hlAuto','hlStyle'];
+  const SAVED_KEYS = ['tpl','accent','autoColor','autoCat','font','align','fontSize','autoFit','showDate','logoCustom','brand','logoFrame','fb','web','yt','fmt','q','hlAuto','hlStyle'];
 
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -791,12 +797,34 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
   // ---------------- LOGO ----------------
   function sizeLogoImg(){
     if (!cLogoImg.naturalWidth || !cLogo.offsetWidth) return;
-    const box = (cLogo.offsetWidth - 4) * 0.84;
+    const raw = S.logoFrame === 'raw';
+    const box = raw ? cLogo.offsetWidth : (cLogo.offsetWidth - 4) * 0.84;
     const r = Math.min(box / cLogoImg.naturalWidth, box / cLogoImg.naturalHeight);
     cLogoImg.style.width  = (cLogoImg.naturalWidth * r) + 'px';
     cLogoImg.style.height = (cLogoImg.naturalHeight * r) + 'px';
   }
-  cLogoImg.onload  = () => { cLogoImg.style.display = 'block'; cLogoFb.style.display = 'none'; sizeLogoImg(); };
+  // Convert the logo once into a high-resolution PNG (keeps transparency).
+  // The exporter then draws a crisp, already-decoded bitmap, so the logo
+  // looks the same in the download as in the preview on every phone.
+  function rasterizeLogo(){
+    try {
+      const nw = cLogoImg.naturalWidth, nh = cLogoImg.naturalHeight;
+      const target = 480, k = target / Math.max(nw, nh);
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(nw * k); cv.height = Math.round(nh * k);
+      const ctx = cv.getContext('2d');
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(cLogoImg, 0, 0, cv.width, cv.height);
+      return cv.toDataURL('image/png');
+    } catch(e){ return null; }   // e.g. opened from file:// — keep original
+  }
+  cLogoImg.onload  = () => {
+    if (!cLogoImg.src.startsWith('data:')){
+      const hi = rasterizeLogo();
+      if (hi){ cLogoImg.src = hi; return; }   // onload fires again with the PNG
+    }
+    cLogoImg.style.display = 'block'; cLogoFb.style.display = 'none'; sizeLogoImg();
+  };
   cLogoImg.onerror = () => { cLogoImg.style.display = 'none'; cLogoFb.style.display = 'block'; };
   function setLogoSrc(){ cLogoImg.src = S.logoCustom || DEFAULT_LOGO; }
 
@@ -805,7 +833,7 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
     if (!file) return;
     const im = new Image(), url = URL.createObjectURL(file);
     im.onload = () => {
-      const r = Math.min(1, 400 / Math.max(im.naturalWidth, im.naturalHeight));
+      const r = Math.min(1, 600 / Math.max(im.naturalWidth, im.naturalHeight));
       const cv = document.createElement('canvas');
       cv.width = Math.round(im.naturalWidth * r); cv.height = Math.round(im.naturalHeight * r);
       cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
@@ -969,7 +997,7 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
   }
   function cardClass(){
     return 'tpl-' + S.tpl + (S.hlStyle === 'marker' ? ' hl-marker' : '') +
-      (S.category === '__none' ? ' no-cat' : '') + (S.showDate && S.dateText.trim() ? '' : ' no-date');
+      (S.category === '__none' ? ' no-cat' : '') + (S.showDate && S.dateText.trim() ? '' : ' no-date') + (S.logoFrame === 'raw' ? ' logo-raw' : '');
   }
   function renderMeta(){
     const c = S.category;
@@ -1034,13 +1062,14 @@ textarea{resize:vertical;line-height:1.55;min-height:96px}
     }));
   }
   function syncSegs(){
-    const map = { alignSeg:'align', fmtSeg:'fmt', qSeg:'q', hlStyleSeg:'hlStyle' };
+    const map = { alignSeg:'align', logoFrameSeg:'logoFrame', fmtSeg:'fmt', qSeg:'q', hlStyleSeg:'hlStyle' };
     for (const id in map) $(id).querySelectorAll('button').forEach(b => b.classList.toggle('active', String(S[map[id]]) === b.dataset.v));
     document.querySelectorAll('.font-chip').forEach(b => b.classList.toggle('active', b.dataset.f === S.font));
     $('qNote').textContent = 'আউটপুট: ' + (600 * S.q) + '×' + (700 * S.q) + ' পিক্সেল · ' + S.fmt.toUpperCase();
   }
   bindSeg('alignSeg', 'align', renderText);
   bindSeg('fmtSeg', 'fmt');
+  bindSeg('logoFrameSeg', 'logoFrame', () => { renderMeta(); sizeLogoImg(); });
   bindSeg('hlStyleSeg', 'hlStyle', () => { applyTemplate(); fitTitle(); });
   bindSeg('qSeg', 'q');
   document.querySelectorAll('.font-chip').forEach(b => b.addEventListener('click', () => {
